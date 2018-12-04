@@ -125,7 +125,7 @@ RUN set -xe \
 	&& pecl update-channels \
 	&& rm -rf /tmp/pear ~/.pearrc
 
-COPY docker-php-ext-* docker-php-entrypoint /usr/local/bin/
+COPY docker-php-ext-* /usr/local/bin/
 
 # sodium was built as a shared module (so that it can be replaced later if so desired), so let's enable it too (https://github.com/docker-library/php/issues/598)
 RUN docker-php-ext-enable sodium
@@ -136,14 +136,15 @@ RUN docker-php-ext-enable sodium
 # Oracle clients need to be downloaded in oracle path
 # -----------------------------------------------------------------------------
 ADD oracle/instantclient-basiclite-linux.x64-12.2.0.1.0.zip /tmp/
+ADD oracle/instantclient-sdk-linux.x64-12.2.0.1.0.zip /tmp/
 COPY oracle/*.so /usr/lib64/php/modules/
-RUN mkdir -p /usr/lib/oracle/12.2/client64/lib/ && \
-    unzip -q /tmp/instantclient-basiclite-linux.x64-12.2.0.1.0.zip -d /tmp && \
-    mv /tmp/instantclient_12_2/* /usr/lib/oracle/12.2/client64/lib/ && \
+RUN unzip -q /tmp/instantclient-basiclite-linux.x64-12.2.0.1.0.zip -d /usr/local/ && \
+    unzip -q /tmp/instantclient-sdk-linux.x64-12.2.0.1.0.zip -d /usr/local/ && \
     rm /tmp/instantclient-basiclite-linux.x64-12.2.0.1.0.zip && \
-    ln -s /usr/lib/oracle/12.2/client64/lib/libclntsh.so.12.1 /usr/lib/oracle/12.2/client64/lib/libclntsh.so && \
-    ln -s /usr/lib/oracle/12.2/client64/lib/libocci.so.12.1 /usr/lib/oracle/12.2/client64/lib/libocci.so && \
-    echo "/usr/lib/oracle/12.2/client64/lib" > /etc/ld.so.conf.d/oracle.conf && \
-    ldconfig && \
-    echo "extension=oci8.so" > $PHP_INI_DIR/conf.d/oci8.ini && \
-    echo "extension=pdo_oci.so" > $PHP_INI_DIR/conf.d/pdo_oci.ini
+    rm /tmp/instantclient-sdk-linux.x64-12.2.0.1.0.zip && \
+    ln -s /usr/local/instantclient_12_2 /usr/local/instantclient && \
+    ln -s /usr/local/instantclient/libclntsh.so.12.1 /usr/local/instantclient/libclntsh.so && \
+    ln -s /usr/local/instantclient/libocci.so.12.1 /usr/local/instantclient/libocci.so && \
+    ls /usr/local/instantclient/ && \
+    docker-php-ext-configure oci8 --with-oci8=instantclient,/usr/local/instantclient && \
+    docker-php-ext-install oci8
